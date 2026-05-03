@@ -1,0 +1,90 @@
+# 1. The Unified Knowledge Base (The "Brain")
+resource "aws_bedrockagent_knowledge_base" "company_kb" {
+  name     = "unified-company-knowledge"
+  role_arn = aws_iam_role.bedrock_kb_role.arn
+
+  knowledge_base_configuration {
+    type = "VECTOR"
+    vector_knowledge_base_configuration {
+      embedding_model_arn = "arn:aws:bedrock:us-east-1::foundation-model/amazon.titan-embed-text-v2:0"
+    }
+  }
+
+  storage_configuration {
+    type = "OPENSEARCH_SERVERLESS"
+    opensearch_serverless_configuration {
+      collection_arn    = aws_opensearchserverless_collection.vector_db.arn
+      vector_index_name = "bedrock-knowledge-base-default-index"
+      field_mapping {
+        vector_field   = "bedrock-knowledge-base-default-vector"
+        text_field     = "AMAZON_BEDROCK_TEXT_CHUNK"
+        metadata_field = "AMAZON_BEDROCK_METADATA"
+      }
+    }
+  }
+}
+
+# 2. Data Source: Confluence (The Wiki)
+resource "aws_bedrockagent_data_source" "confluence" {
+  knowledge_base_id = aws_bedrockagent_knowledge_base.company_kb.id
+  name              = "confluence-wiki"
+  type              = "CONFLUENCE"
+
+  data_source_configuration {
+    type = "CONFLUENCE"
+    confluence_configuration {
+      source_configuration {
+        host_url  = "https://atlassian.net"
+        host_type = "SAAS"
+        auth_type = "BASIC"
+        credentials_secret_arn = aws_secretsmanager_secret.confluence_creds.arn
+      }
+      crawler_configuration {
+        filter_configuration {
+          type = "PATTERN"
+          patterns {
+            pattern_type = "INCLUDE"
+            expression   = ".*" # Crawls everything in allowed spaces
+          }
+        }
+      }
+    }
+  }
+}
+
+# 3. Data Source: S3 (Manual PDF Uploads)
+resource "aws_bedrockagent_data_source" "manual_uploads" {
+  knowledge_base_id = aws_bedrockagent_knowledge_base.company_kb.id
+  name              = "manual-pdfs"
+  type              = "S3"
+
+  data_source_configuration {
+    type = "S3"
+    s3_configuration {
+      bucket_arn = aws_s3_bucket.manual_docs.arn
+      inclusion_prefixes = ["manuals/"]
+    }
+  }
+}
+
+# 4. Data Source: Jira (Web Crawler approach)
+# Note: For private Jira, use the same 'CONFLUENCE' style config if available or 
+# a custom connector. Here we show the Web Crawler for public/internal web portals.
+resource "aws_bedrockagent_data_source" "jira_web" {
+  knowledge_base_id = aws_bedrockagent_knowledge_base.company_kb.id
+  name              = "jira-issues"
+  type              = "WEB"
+
+  data_source_configuration {
+    type = "WEB"
+    web_configuration {
+      source_configuration {
+        url_configuration {
+          seed_urls {
+            url = "https://atlassian.net/jira"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,32 @@
+{
+    "Version": "2012-10-17",
+    "Statement": [
+        {
+            "Sid": "BedrockInvokeModel",
+            "Effect": "Allow",
+            "Action": "bedrock:InvokeModel",
+            "Resource": "arn:aws:bedrock:us-east-1::foundation-model/amazon.titan-embed-text-v2:0"
+        },
+        {
+            "Sid": "S3Access",
+            "Effect": "Allow",
+            "Action": ["s3:GetObject", "s3:ListBucket"],
+            "Resource": [
+                "arn:aws:s3:::my-manual-uploads-bucket",
+                "arn:aws:s3:::my-manual-uploads-bucket/*"
+            ]
+        },
+        {
+            "Sid": "OpenSearchAccess",
+            "Effect": "Allow",
+            "Action": "aoss:APIAccessAll",
+            "Resource": "arn:aws:aoss:us-east-1:123456789012:collection/abc123xyz"
+        },
+        {
+            "Sid": "SecretsAccess",
+            "Effect": "Allow",
+            "Action": "secretsmanager:GetSecretValue",
+            "Resource": "arn:aws:secretsmanager:us-east-1:123456789012:secret:confluence_creds-*"
+        }
+    ]
+}

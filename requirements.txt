@@ -1,0 +1,6 @@
+boto3
+langchain
+langchain-community
+pytest
+python-dotenv
+requests

@@ -1,0 +1,18 @@
+# Python
+__pycache__/
+*.pyc
+.env
+config.yaml
+*.log
+
+# VSCode
+.vscode/
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.terraform/
+.terraform.lock.hcl
+
+# OS
+.DS_Store
