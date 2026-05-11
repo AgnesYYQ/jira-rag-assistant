@@ -1,4 +1,5 @@
 import pytest
 
 def test_placeholder():
-    assert True  # Replace with real tests once code is modularized
+    # Placeholder test to ensure test discovery passes.
+    assert True

@@ -1,10 +1,10 @@
 """
 Agent logic for JiraBot: retrieval, generation, and JIRA comment posting.
 """
+
 import os
 import yaml
 import boto3
-from langchain.agents import AgentExecutor, create_openai_functions_agent
 from langchain_community.agent_toolkits import JiraToolkit
 from langchain_community.retrievers import AmazonKnowledgeBasesRetriever
 
