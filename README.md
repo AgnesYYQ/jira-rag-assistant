@@ -10,6 +10,56 @@ JiraBot leverages AWS Bedrock, a unified knowledge base (RAG), and JIRA APIs to 
 - Source citation in generated comments
 - Modular, extensible Python codebase
 
+
+## Architecture Diagram
+
+```mermaid
+graph TD
+
+  User["User"]
+  CLI["CLI / Script"]
+  Agent["Agent Logic (agent.py)"]
+  Bedrock["Amazon Bedrock"]
+  Retriever["AmazonKnowledgeBasesRetriever"]
+  JiraAPI["Jira API"]
+  KnowledgeBase["Knowledge Base"]
+  JiraCloud["Jira Cloud"]
+
+  User --> CLI
+  CLI --> Agent
+  Agent --> Bedrock
+  Agent --> Retriever
+  Agent --> JiraAPI
+  Retriever --> KnowledgeBase
+  Bedrock -->|RAG| KnowledgeBase
+  JiraAPI --> JiraCloud
+```
+
+## Flow Diagram
+
+```mermaid
+sequenceDiagram
+  participant User
+  participant CLI as CLI/Script
+  participant Agent as Agent Logic
+  participant Retriever
+  participant Bedrock
+  participant JiraAPI
+  participant JiraCloud
+  User->>CLI: Run with ticket key
+  CLI->>Agent: main()
+  Agent->>Bedrock: retrieve_and_generate()
+  Bedrock->>Retriever: Retrieve context
+  Retriever->>Bedrock: Return context
+  Bedrock->>Agent: Generated comment
+  Agent->>JiraAPI: add_comment()
+  JiraAPI->>JiraCloud: POST comment
+  JiraCloud-->>JiraAPI: Success
+  JiraAPI-->>Agent: Success
+  Agent-->>CLI: Print/Post result
+  CLI-->>User: Show output
+```
+
 ## Architecture
 - **Python**: Orchestrates retrieval, generation, and JIRA API calls
 - **AWS Bedrock**: Embedding, vector search, and LLM inference
