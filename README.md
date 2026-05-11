@@ -1,6 +1,8 @@
 # JiraBot: Bedrock RAG-Powered JIRA Comment Assistant
 
 ## Overview
+JiraBot is automatically triggered by Jira webhooks when a new ticket is created. The webhook server receives the event, runs the agent logic, and posts a generated comment to the ticket. No manual CLI/script is needed in production. (A CLI is available for local/manual runs.)
+
 JiraBot leverages AWS Bedrock, a unified knowledge base (RAG), and JIRA APIs to generate high-quality, context-aware comments for JIRA tickets. It integrates data from Confluence, JIRA, GitHub, and S3, using vector search and LLMs for retrieval-augmented generation.
 
 ## Features
@@ -15,49 +17,39 @@ JiraBot leverages AWS Bedrock, a unified knowledge base (RAG), and JIRA APIs to 
 
 ```mermaid
 graph TD
-
-  User["User"]
-  CLI["CLI / Script"]
+  Jira["Jira Cloud"]
+  Webhook["Webhook Server (FastAPI)"]
   Agent["Agent Logic (agent.py)"]
   Bedrock["Amazon Bedrock"]
   Retriever["AmazonKnowledgeBasesRetriever"]
-  JiraAPI["Jira API"]
   KnowledgeBase["Knowledge Base"]
-  JiraCloud["Jira Cloud"]
 
-  User --> CLI
-  CLI --> Agent
+  Jira -- Issue Created Webhook --> Webhook
+  Webhook --> Agent
   Agent --> Bedrock
   Agent --> Retriever
-  Agent --> JiraAPI
   Retriever --> KnowledgeBase
   Bedrock -->|RAG| KnowledgeBase
-  JiraAPI --> JiraCloud
+  Agent --> Jira
 ```
 
 ## Flow Diagram
 
 ```mermaid
 sequenceDiagram
-  participant User
-  participant CLI as CLI/Script
-  participant Agent as Agent Logic
+  participant Jira as JiraCloud
+  participant Webhook as WebhookServer
+  participant Agent as AgentLogic
   participant Retriever
   participant Bedrock
-  participant JiraAPI
-  participant JiraCloud
-  User->>CLI: Run with ticket key
-  CLI->>Agent: main()
+  participant KnowledgeBase
+  Jira->>Webhook: Issue Created (webhook)
+  Webhook->>Agent: Trigger agent logic
   Agent->>Bedrock: retrieve_and_generate()
   Bedrock->>Retriever: Retrieve context
   Retriever->>Bedrock: Return context
   Bedrock->>Agent: Generated comment
-  Agent->>JiraAPI: add_comment()
-  JiraAPI->>JiraCloud: POST comment
-  JiraCloud-->>JiraAPI: Success
-  JiraAPI-->>Agent: Success
-  Agent-->>CLI: Print/Post result
-  CLI-->>User: Show output
+  Agent->>Jira: Post comment
 ```
 
 ## Architecture
@@ -65,15 +57,37 @@ sequenceDiagram
 - **AWS Bedrock**: Embedding, vector search, and LLM inference
 - **Terraform**: Infrastructure as code for KB, data sources, IAM
 
-## Setup
+
+## Setup & Deployment
 1. Clone the repo
 2. Install Python dependencies: `pip install -r requirements.txt`
-3. Configure AWS credentials and JIRA API access
-4. Deploy infrastructure with Terraform (see kb.yaml, iam.yaml)
-5. Set environment variables or edit `config.yaml` for runtime settings
+3. (Optional for local run) Install FastAPI and Uvicorn: `pip install fastapi uvicorn`
+4. Configure AWS credentials and JIRA API access
+5. Deploy infrastructure with Terraform (see kb.yaml, iam.yaml)
+6. Set environment variables or edit `config.yaml` for runtime settings
+
+### Run the Webhook Server (Production)
+You can run the webhook server directly or with Docker:
+
+**Directly:**
+```bash
+uvicorn webhook_server:app --host 0.0.0.0 --port 8000
+```
+
+**With Docker Compose:**
+```bash
+docker-compose up --build
+```
+
+### Connect Jira to the Agent
+1. Go to Jira settings → System → Webhooks
+2. Add a webhook with the URL: `http://<your-server>:8000/webhook/jira`
+3. Set the event: "Issue created"
+4. The agent will be triggered automatically for every new ticket, generating and posting a comment.
 
 ## Usage
-- Run the main script to generate and post JIRA comments:
+- In production, the agent is triggered automatically by Jira webhooks (see above).
+- For local/manual testing, you can still run:
   ```bash
   python jiraComment.py --ticket ABC-123
   ```
