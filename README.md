@@ -1,3 +1,24 @@
+### Start the Webhook Server Locally
+
+To start the webhook server locally for development/testing:
+
+```bash
+uvicorn webhook_server:app --host 0.0.0.0 --port 8000
+```
+
+You can access the FastAPI docs at: http://localhost:8000/docs
+
+### Manually Test the Webhook Endpoint
+
+You can manually test the webhook endpoint using curl:
+
+```bash
+curl -X POST http://localhost:8000/webhook/jira \
+  -H "Content-Type: application/json" \
+  -d '{"issue": {"key": "ABC-123"}, "webhookEvent": "jira:issue_created"}'
+```
+
+You should receive a JSON response indicating the request was accepted.
 # JiraBot: Bedrock RAG-Powered JIRA Comment Assistant
 
 ## Overview
@@ -40,14 +61,13 @@ sequenceDiagram
   participant Jira as JiraCloud
   participant Webhook as WebhookServer
   participant Agent as AgentLogic
-  participant Retriever
   participant Bedrock
   participant KnowledgeBase
   Jira->>Webhook: Issue Created (webhook)
   Webhook->>Agent: Trigger agent logic
   Agent->>Bedrock: retrieve_and_generate()
-  Bedrock->>Retriever: Retrieve context
-  Retriever->>Bedrock: Return context
+  Bedrock->>KnowledgeBase: Retrieve context
+  KnowledgeBase-->>Bedrock: Return context
   Bedrock->>Agent: Generated comment
   Agent->>Jira: Post comment
 ```
@@ -80,10 +100,14 @@ docker-compose up --build
 ```
 
 ### Connect Jira to the Agent
-1. Go to Jira settings → System → Webhooks
-2. Add a webhook with the URL: `http://<your-server>:8000/webhook/jira`
-3. Set the event: "Issue created"
-4. The agent will be triggered automatically for every new ticket, generating and posting a comment.
+To enable automatic ticket processing, you must configure a Jira webhook:
+1. Go to **Jira settings → System → Webhooks**
+2. Click **Create a webhook**
+3. Set the URL to: `http://<your-server>:8000/webhook/jira`
+4. Under **Events**, select **Issue created** (and deselect others unless needed)
+5. Save the webhook
+
+Jira will now send a POST request to your webhook server every time a new ticket is created, and the agent will process it automatically.
 
 ## Usage
 - In production, the agent is triggered automatically by Jira webhooks (see above).
