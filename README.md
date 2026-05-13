@@ -21,8 +21,13 @@ curl -X POST http://localhost:8000/webhook/jira \
 You should receive a JSON response indicating the request was accepted.
 # JiraBot: Bedrock RAG-Powered JIRA Comment Assistant
 
+
 ## Overview
-JiraBot is automatically triggered by Jira webhooks when a new ticket is created. The webhook server receives the event, runs the agent logic, and posts a generated comment to the ticket. No manual CLI/script is needed in production. (A CLI is available for local/manual runs.)
+JiraBot is automatically triggered by Jira webhooks when a new ticket is created. The webhook server receives the event, runs the agent logic (main.py), and posts a generated comment to the ticket.
+
+**Agent Logic (main.py) is used in two ways:**
+- **Automation:** Invoked by the webhook server for production ticket processing.
+- **Manual/Testing:** Can be run directly from the CLI for development and testing.
 
 JiraBot leverages AWS Bedrock, a unified knowledge base (RAG), and JIRA APIs to generate high-quality, context-aware comments for JIRA tickets. It integrates data from Confluence, JIRA, GitHub, and S3, using vector search and LLMs for retrieval-augmented generation.
 
@@ -40,13 +45,15 @@ JiraBot leverages AWS Bedrock, a unified knowledge base (RAG), and JIRA APIs to 
 graph TD
   Jira["Jira Cloud"]
   Webhook["Webhook Server (FastAPI)"]
-  Agent["Agent Logic (agent.py)"]
+  CLI["Manual CLI (main.py)"]
+  Agent["Agent Logic (main.py)"]
   Bedrock["Amazon Bedrock"]
   Retriever["AmazonKnowledgeBasesRetriever"]
   KnowledgeBase["Knowledge Base"]
 
   Jira -- Issue Created Webhook --> Webhook
   Webhook --> Agent
+  CLI --> Agent
   Agent --> Bedrock
   Agent --> Retriever
   Retriever --> KnowledgeBase
@@ -60,11 +67,13 @@ graph TD
 sequenceDiagram
   participant Jira as JiraCloud
   participant Webhook as WebhookServer
+  participant CLI as ManualCLI
   participant Agent as AgentLogic
   participant Bedrock
   participant KnowledgeBase
   Jira->>Webhook: Issue Created (webhook)
   Webhook->>Agent: Trigger agent logic
+  CLI->>Agent: Manual trigger (testing)
   Agent->>Bedrock: retrieve_and_generate()
   Bedrock->>KnowledgeBase: Retrieve context
   KnowledgeBase-->>Bedrock: Return context
@@ -110,12 +119,15 @@ To enable automatic ticket processing, you must configure a Jira webhook:
 Jira will now send a POST request to your webhook server every time a new ticket is created, and the agent will process it automatically.
 
 ## Usage
-- In production, the agent is triggered automatically by Jira webhooks (see above).
-- For local/manual testing, you can still run:
+
+- **Production:** The agent logic (main.py) is triggered automatically by Jira webhooks via the webhook server. No manual script execution is required.
+- **Manual/Testing:** For local/manual testing, you can run the agent logic directly from the CLI:
   ```bash
-  python jiraComment.py --ticket ABC-123
+  python -m jirabot.main --ticket ABC-123
   ```
-- Customize prompts, retrieval, and posting logic as needed
+  - Use `--dry-run` to print the generated comment without posting to Jira.
+  - This manual mode uses the same agent logic as automation and does not interfere with the webhook server or automated flow.
+- Customize prompts, retrieval, and posting logic as needed.
 
 ## Folder Structure
 - `jiraComment.py` — Main script (to be modularized)
