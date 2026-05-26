@@ -6,16 +6,26 @@ from webhook_server import app
 client = TestClient(app)
 
 def test_jira_webhook_accepts_valid_payload(monkeypatch):
-    called = {}
-    def fake_run_agent_on_ticket(ticket_key):
-        called['ticket'] = ticket_key
-    monkeypatch.setattr("webhook_server.run_agent_on_ticket", fake_run_agent_on_ticket)
-    payload = {"issue": {"key": "ABC-123"}}
-    response = client.post("/webhook/jira", json=payload)
-    assert response.status_code == 200
-    assert response.json()["status"] == "accepted"
-    assert response.json()["ticket"] == "ABC-123"
-    assert called['ticket'] == "ABC-123"
+    test_cases = [
+        ( {"issue": {"key": "ABC-123"}, "webhookEvent": "jira:issue_created"}, "accepted", True ),
+        ( {"issue": {"key": "ABC-123"}, "issue_event_type_name": "issue_created"}, "accepted", True ),
+        ( {"issue": {"key": "ABC-123"}, "webhookEvent": "jira:issue_updated"}, "ignored", False ),
+        ( {"issue": {"key": "ABC-123"}}, "ignored", False ),
+    ]
+    for payload, expected_status, should_call in test_cases:
+        called = {}
+        def fake_run_agent_on_ticket(ticket_key):
+            called['ticket'] = ticket_key
+        monkeypatch.setattr("webhook_server.run_agent_on_ticket", fake_run_agent_on_ticket)
+        response = client.post("/webhook/jira", json=payload)
+        assert response.status_code == 200
+        assert response.json()["status"] == expected_status
+        if expected_status == "accepted":
+            assert response.json()["ticket"] == payload["issue"]["key"]
+            assert called['ticket'] == payload["issue"]["key"]
+        else:
+            assert "reason" in response.json()
+            assert not called
 
     def test_jira_webhook_accepts_valid_created_event(monkeypatch):
         called = {}

@@ -1,0 +1,5 @@
+[
+    {"id": "1", "question": "How to reset a Jira password?", "answer": "Go to your profile settings and select 'Change Password'."},
+    {"id": "2", "question": "How to create a Jira issue?", "answer": "Click the 'Create' button and fill in the required fields."},
+    {"id": "3", "question": "How to assign an issue?", "answer": "Open the issue and use the 'Assignee' field to select a user."}
+]

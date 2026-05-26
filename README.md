@@ -38,6 +38,17 @@ JiraBot leverages AWS Bedrock, a unified knowledge base (RAG), and JIRA APIs to 
 - Source citation in generated comments
 - Modular, extensible Python codebase
 
+## Keeping the Vector DB Up-to-Date with Confluence
+
+The project includes an automated sync pipeline (`jirabot/wiki_sync.py`) to ensure the vector DB always reflects the latest Confluence wiki content:
+
+1. **Automated Sync:** Fetches all pages from Confluence via API on a schedule (e.g., cron, Airflow, GitHub Actions) and updates the vector DB.
+2. **Obsolete/Deprecated Detection:** Pages with titles, labels, or content containing "obsolete", "deprecated", or "archived" are excluded from the vector DB.
+3. **Change Detection:** Only pages with updated timestamps or new versions are re-indexed, minimizing unnecessary updates.
+4. **Deletion Handling:** Pages deleted or marked obsolete in Confluence are removed from the vector DB.
+
+Run `python jirabot/wiki_sync.py <SPACEKEY>` to sync a Confluence space. Configure API credentials and KB path via environment variables.
+
 
 ## Architecture Diagram
 
