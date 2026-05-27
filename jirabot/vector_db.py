@@ -33,6 +33,10 @@ class VectorDB:
                 for field in ["question", "answer", "folder", "wiki_title"]
             ):
                 continue
+            # Only keep Jira issues that are Closed/Solved
+            if item.get("type") == "jira_issue":
+                if item.get("status") != "Closed" or item.get("resolution") != "Solved":
+                    continue
             # Filter out old Jira issues (if date field exists)
             date_str = item.get("created") or item.get("date")
             if date_str:

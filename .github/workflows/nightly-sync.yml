@@ -1,0 +1,59 @@
+name: Nightly Sync KB
+
+
+on:
+  schedule:
+    - cron: '0 3 * * *'  # Every day at 03:00 UTC
+  workflow_dispatch:
+    inputs:
+      wiki:
+        description: 'Sync Wiki'
+        required: false
+        default: 'true'
+        type: boolean
+      jira:
+        description: 'Sync Jira'
+        required: false
+        default: 'true'
+        type: boolean
+      github:
+        description: 'Sync GitHub'
+        required: false
+        default: 'true'
+        type: boolean
+
+jobs:
+  nightly-sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Run nightly sync
+        env:
+          WIKI_SPACE: ${{ secrets.WIKI_SPACE }}
+          JIRA_PROJECT: ${{ secrets.JIRA_PROJECT }}
+          GITHUB_REPO: ${{ secrets.GITHUB_REPO }}
+          CONFLUENCE_API_URL: ${{ secrets.CONFLUENCE_API_URL }}
+          CONFLUENCE_USER: ${{ secrets.CONFLUENCE_USER }}
+          CONFLUENCE_TOKEN: ${{ secrets.CONFLUENCE_TOKEN }}
+        run: |
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            ARGS=""
+            if [[ "${{ github.event.inputs.wiki }}" == "true" ]]; then ARGS="$ARGS --wiki"; fi
+            if [[ "${{ github.event.inputs.jira }}" == "true" ]]; then ARGS="$ARGS --jira"; fi
+            if [[ "${{ github.event.inputs.github }}" == "true" ]]; then ARGS="$ARGS --github"; fi
+            if [[ -z "$ARGS" ]]; then ARGS="--wiki --jira --github"; fi
+            echo "Manual trigger: python nightly_sync.py $ARGS"
+            python nightly_sync.py $ARGS
+          else
+            echo "Scheduled trigger: python nightly_sync.py"
+            python nightly_sync.py
+          fi

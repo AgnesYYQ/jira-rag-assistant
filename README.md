@@ -38,16 +38,52 @@ JiraBot leverages AWS Bedrock, a unified knowledge base (RAG), and JIRA APIs to 
 - Source citation in generated comments
 - Modular, extensible Python codebase
 
-## Keeping the Vector DB Up-to-Date with Confluence
+## Keeping the Vector DB Up-to-Date (Syncing Knowledge Sources)
 
-The project includes an automated sync pipeline (`jirabot/wiki_sync.py`) to ensure the vector DB always reflects the latest Confluence wiki content:
+The project includes a unified sync pipeline to ensure the vector DB always reflects the latest content from Confluence Wiki, Jira, and GitHub:
 
-1. **Automated Sync:** Fetches all pages from Confluence via API on a schedule (e.g., cron, Airflow, GitHub Actions) and updates the vector DB.
-2. **Obsolete/Deprecated Detection:** Pages with titles, labels, or content containing "obsolete", "deprecated", or "archived" are excluded from the vector DB.
-3. **Change Detection:** Only pages with updated timestamps or new versions are re-indexed, minimizing unnecessary updates.
-4. **Deletion Handling:** Pages deleted or marked obsolete in Confluence are removed from the vector DB.
+### Sync Rules (applied to all sources)
+1. **Automated Sync:** All sources (Wiki, Jira, GitHub) are fetched and updated on a schedule or manually.
+2. **Obsolete/Deprecated/Archived Detection:**
+  - **Wiki:** Pages with titles, labels, or content containing "obsolete", "deprecated", or "archived" are excluded from the vector DB.
+  - **Jira:** Only issues with status "Closed" and resolution "Solved" are included.
+  - **GitHub:** Only code files (not issues/PRs) are synced; you may filter by file extension or path.
+3. **Change Detection:** Only new or updated items (by version, timestamp, or commit) are re-indexed to minimize unnecessary updates.
+4. **Deletion/Removal Handling:**
+  - **Wiki:** Pages deleted or marked obsolete in Confluence are removed from the vector DB.
+  - **Jira:** Issues that are no longer "Closed/Solved" are removed from the vector DB.
+  - **GitHub:** Files deleted from the repo are removed from the vector DB.
 
-Run `python jirabot/wiki_sync.py <SPACEKEY>` to sync a Confluence space. Configure API credentials and KB path via environment variables.
+### Automated & Manual Sync
+- **Automated Nightly Sync:** A central script (`nightly_sync.py`) runs all sync pipelines (Wiki, Jira, GitHub) on a schedule using GitHub Actions (GHA) or any scheduler. This keeps the KB up-to-date with all sources.
+- **Manual/Selective Sync:** The same script and GHA workflow can be manually triggered to sync only selected sources (Wiki, Jira, GitHub) as needed.
+
+### Individual Sync Scripts
+- `jirabot/wiki_sync.py` — Syncs Confluence Wiki pages to the KB (run with: `python jirabot/wiki_sync.py <SPACEKEY>`)
+- `jirabot/jira_sync.py` — Syncs Jira issues to the KB (run with: `python jirabot/jira_sync.py <PROJECTKEY>`)
+- `jirabot/github_sync.py` — Syncs GitHub issues/PRs to the KB (run with: `python jirabot/github_sync.py <ORG/REPO>`)
+
+All scripts require appropriate API credentials and KB path via environment variables.
+
+### GitHub Actions Workflow
+- The workflow `.github/workflows/nightly-sync.yml` runs nightly by default, syncing all three sources.
+- You can also manually trigger the workflow and select which sources to sync (Wiki, Jira, GitHub) via the GHA UI.
+
+### Example: Manual Sync
+To sync only Jira and GitHub (not Wiki) via CLI:
+```bash
+python nightly_sync.py --jira --github
+```
+
+To sync only Wiki via GHA, use the workflow dispatch UI and uncheck Jira and GitHub.
+
+### Environment Variables
+Set the following as secrets or environment variables as needed:
+- `WIKI_SPACE`, `JIRA_PROJECT`, `GITHUB_REPO`
+- `CONFLUENCE_API_URL`, `CONFLUENCE_USER`, `CONFLUENCE_TOKEN`
+- `JIRA_API_URL`, `JIRA_USER`, `JIRA_TOKEN`
+- `GITHUB_TOKEN`
+- `VECTOR_KB_PATH` (optional, default: `./kb_data/sample_kb.json`)
 
 
 ## Architecture Diagram
