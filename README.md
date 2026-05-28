@@ -183,6 +183,30 @@ Jira will now send a POST request to your webhook server every time a new ticket
 - `requirements.txt` — Python dependencies
 - `README.md` — This file
 
+## Scripts moved for better organization
+
+All Python scripts previously in the root directory are now in the scripts/ folder:
+
+- chroma_query.py
+- chroma_remove_duplicates.py
+- local_chromadb_ingest.py
+- nightly_sync.py
+- rag_server.py
+- run_webhook_server.py
+- webhook_server.py
+
+Update your usage accordingly, e.g.:
+
+    python scripts/chroma_query.py "your query"
+
+or
+
+    uvicorn scripts.rag_server:app --reload
+
+---
+
+If you have scripts or entry points in Docker, CI, or docs, update their paths to use scripts/.
+
 ## Roadmap
 - Modularize codebase (src/ or jirabot/)
 - Add tests and CI
