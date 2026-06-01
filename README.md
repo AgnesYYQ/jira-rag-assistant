@@ -108,6 +108,46 @@ graph TD
   Agent --> Jira
 ```
 
+
+## Architecture Diagram
+
+```mermaid
+graph TD
+  subgraph Cloud [AWS Cloud]
+    Bedrock["Bedrock Agent (LLM, Embeddings)"]
+    OpenSearch["OpenSearch Serverless (Vector DB)"]
+    S3[("S3 Bucket<br/>(Manual Docs)")]
+    Secrets["Secrets Manager"]
+    IAM["IAM Roles/Policies"]
+  end
+  subgraph SaaS
+    Jira[Jira Cloud]
+    Confluence[Confluence Wiki]
+    GitHub[GitHub]
+  end
+  subgraph Local [Container/Server]
+    Webhook["Webhook Server<br/>(FastAPI/Uvicorn)"]
+    Agent["Agent Logic<br/>(Python)"]
+    CLI["Manual CLI"]
+  end
+
+  Jira -- webhook --> Webhook
+  Webhook -- triggers --> Agent
+  CLI -- manual trigger --> Agent
+  Agent -- "retrieve/generate" --> Bedrock
+  Bedrock -- "vector search" --> OpenSearch
+  Bedrock -- "fetch docs" --> S3
+  Bedrock -- "wiki data" --> Confluence
+  Bedrock -- "issue data" --> Jira
+  Bedrock -- "code/docs" --> GitHub
+  Bedrock -- "get creds" --> Secrets
+  Bedrock -- "assume role" --> IAM
+  Webhook -- posts comment --> Jira
+
+```
+
+---
+
 ## Flow Diagram
 
 ```mermaid
