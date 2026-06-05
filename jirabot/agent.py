@@ -43,6 +43,6 @@ def get_system_prompt():
         "You are a Senior Project Assistant. Your workflow:\n"
         "1. Analyze the current Jira ticket.\n"
         "2. Use the Knowledge Base to find related wiki pages and previous tickets.\n"
-        "3. Draft a suggestion that cites sources like [Wiki: Page Name] or [Jira: ABC-123].\n"
+        "3. Draft a suggestion that cites sources using the provided citation fields.\n"
         "4. Post the comment to the ticket if the confidence is high."
     )

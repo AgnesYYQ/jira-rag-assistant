@@ -45,3 +45,64 @@ def complexity_from_text(text: str) -> tuple[float, str]:
         label = "high"
 
     return score, label
+
+
+def format_citation(item: dict) -> str:
+    """Build a human-readable citation string from a retrieval result item.
+
+    Returns a formatted string like:
+        [GitHub: org/repo/path/file.py]
+        [Jira: ABC-123] by jdoe
+        [Wiki: Page Title] by jdoe
+    """
+    source = item.get("source", "kb")
+    source_id = item.get("source_id", item.get("id", "?"))
+    title = item.get("title", "")
+    author = item.get("author")
+
+    # Map internal source name to display label
+    source_labels = {
+        "github": "GitHub",
+        "jira": "Jira",
+        "wiki": "Wiki",
+        "kb": "KB",
+    }
+    label = source_labels.get(source, source.upper())
+
+    # Build the core citation part
+    if source == "github":
+        citation = f"[{label}: {source_id}]"
+    elif source == "jira":
+        citation = f"[{label}: {source_id}]"
+    elif source == "wiki":
+        citation = f"[{label}: {title}]" if title else f"[{label}: {source_id}]"
+    else:
+        citation = f"[{label}: {title or source_id}]"
+
+    # Append attribution if available
+    if author:
+        citation += f" by {author}"
+
+    return citation
+
+
+def format_citation_markdown(item: dict) -> str:
+    """Build a Markdown link citation from a retrieval result item.
+
+    Returns a formatted string like:
+        [org/repo/path/file.py](https://github.com/...) by jdoe
+    """
+    source = item.get("source", "kb")
+    source_url = item.get("source_url", "")
+    title = item.get("title", item.get("source_id", "?"))
+    author = item.get("author")
+
+    if source_url:
+        citation = f"[{title}]({source_url})"
+    else:
+        citation = f"`{title}`"
+
+    if author:
+        citation += f" by {author}"
+
+    return citation

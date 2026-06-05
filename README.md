@@ -239,7 +239,7 @@ Jira will now send a POST request to your webhook server every time a new ticket
   uvicorn scripts.rag_server:app --host 0.0.0.0 --port 8001 --reload
   ```
 
-  Then use the page to run queries and read the answer, links, and retrieval scores as cards.
+  Once the server is running, open [http://localhost:8001/](http://localhost:8001/) to access the web UI. Enter a question and click **Ask JiraBot** (or press <kbd>Cmd</kbd>+<kbd>Enter</kbd>) to query the GitHub Chroma collection and see the generated answer, source links, and retrieval results with confidence and complexity scores.
 
   If you want the raw API response instead, call `/query`:
 
@@ -249,7 +249,7 @@ Jira will now send a POST request to your webhook server every time a new ticket
     -d '{"question":"rag agent"}'
   ```
 
-  The query output includes retrieval metadata such as distance, a normalized confidence score, and a lightweight complexity estimate.
+  The query output includes retrieval metadata such as distance, a normalized confidence score, a lightweight complexity estimate, and source citation.
 
 ## Folder Structure
 - `jiraComment.py` — Main script (to be modularized)

@@ -6,7 +6,12 @@ from sentence_transformers import SentenceTransformer
 import numpy as np
 import json
 import os
-from jirabot.query_scoring import confidence_from_distance, complexity_from_text
+from jirabot.query_scoring import (
+    confidence_from_distance,
+    complexity_from_text,
+    format_citation,
+    format_citation_markdown,
+)
 
 class VectorDB:
     def __init__(self, kb_path, model_name='all-MiniLM-L6-v2'):
@@ -74,5 +79,8 @@ class VectorDB:
                 item["confidence_score"] = confidence_score
                 item["complexity_score"] = complexity_score
                 item["complexity_label"] = complexity_label
+                # Citation / Attribution
+                item["citation"] = format_citation(item)
+                item["citation_markdown"] = format_citation_markdown(item)
                 results.append(item)
         return results

@@ -1,5 +1,41 @@
 [
-    {"id": "1", "question": "How to reset a Jira password?", "answer": "Go to your profile settings and select 'Change Password'."},
-    {"id": "2", "question": "How to create a Jira issue?", "answer": "Click the 'Create' button and fill in the required fields."},
-    {"id": "3", "question": "How to assign an issue?", "answer": "Open the issue and use the 'Assignee' field to select a user."}
+    {
+        "id": "1",
+        "question": "How to reset a Jira password?",
+        "answer": "Go to your profile settings and select 'Change Password'.",
+        "source": "jira",
+        "source_id": "HELP-123",
+        "source_url": "https://your-domain.atlassian.net/browse/HELP-123",
+        "title": "How to reset a Jira password?",
+        "author": "jdoe",
+        "type": "jira_issue",
+        "status": "Closed",
+        "resolution": "Solved",
+        "created": "2025-06-01T10:00:00Z"
+    },
+    {
+        "id": "2",
+        "question": "How to create a Jira issue?",
+        "answer": "Click the 'Create' button and fill in the required fields.",
+        "source": "wiki",
+        "source_id": "987654",
+        "source_url": "https://your-domain.atlassian.net/wiki/spaces/ENG/pages/987654",
+        "title": "Creating a Jira Issue",
+        "author": "asmith",
+        "version": 3,
+        "updated": "2025-05-15T08:30:00Z"
+    },
+    {
+        "id": "3",
+        "question": "How to assign an issue?",
+        "answer": "Open the issue and use the 'Assignee' field to select a user.",
+        "source": "github",
+        "source_id": "yourorg/yourrepo/docs/triage.md",
+        "source_url": "https://github.com/yourorg/yourrepo/blob/main/docs/triage.md",
+        "title": "triage.md",
+        "repo": "yourorg/yourrepo",
+        "path": "docs/triage.md",
+        "author": null,
+        "type": "github_code"
+    }
 ]

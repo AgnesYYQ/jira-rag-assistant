@@ -65,6 +65,9 @@ def sync_jira_to_vector_db(project_key):
         summary = fields.get("summary", "")
         description = fields.get("description", "")
         created = fields.get("created", "")
+        issue_key = issue.get("key", "")
+        creator = fields.get("creator", {}).get("displayName")
+        source_url = f"{JIRA_API_URL}/browse/{issue_key}"
         kb_by_id[issue_id] = {
             "id": issue_id,
             "question": summary,
@@ -72,7 +75,15 @@ def sync_jira_to_vector_db(project_key):
             "created": created,
             "status": status,
             "resolution": resolution,
-            "type": "jira_issue"
+            "type": "jira_issue",
+            # --- Citation ---
+            "source": "jira",
+            "source_id": issue_key,
+            "source_url": source_url,
+            "title": summary,
+            # --- Attribution ---
+            "author": creator,
+            "updated": fields.get("updated", ""),
         }
         filtered_issues.append(issue)
     # Save

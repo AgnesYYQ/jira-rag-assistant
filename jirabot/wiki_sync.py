@@ -94,12 +94,21 @@ def sync_confluence_to_vector_db(space_key):
         version = get_page_version(page)
         updated = get_page_updated(page)
         # If new or updated, add/update
+        author = page.get("version", {}).get("by", {}).get("displayName")
+        source_url = f"{CONFLUENCE_API_URL}/spaces/{space_key}/pages/{page_id}"
         kb_by_id[page_id] = {
             "id": page_id,
             "question": page["title"],
             "answer": page.get("body", {}).get("storage", {}).get("value", ""),
             "version": version,
             "updated": updated,
+            # --- Citation ---
+            "source": "wiki",
+            "source_id": page_id,
+            "source_url": source_url,
+            "title": page["title"],
+            # --- Attribution ---
+            "author": author,
         }
     # Remove deleted pages
     page_ids = set(page["id"] for page in pages if not is_obsolete(page))

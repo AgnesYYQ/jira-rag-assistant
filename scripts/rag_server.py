@@ -10,7 +10,12 @@ ROOT_DIR = Path(__file__).resolve().parents[1]
 if str(ROOT_DIR) not in sys.path:
 	sys.path.insert(0, str(ROOT_DIR))
 
-from jirabot.query_scoring import confidence_from_distance, complexity_from_text
+from jirabot.query_scoring import (
+    confidence_from_distance,
+    complexity_from_text,
+    format_citation,
+    format_citation_markdown,
+)
 
 app = FastAPI()
 client = chromadb.PersistentClient(path="chroma_db")
@@ -223,11 +228,12 @@ def home():
 				const distance = item.distance == null ? 'n/a' : Number(item.distance).toFixed(4);
 				const confidence = item.confidence_score == null ? 'n/a' : Number(item.confidence_score).toFixed(3);
 				const complexity = item.complexity_score == null ? 'n/a' : Number(item.complexity_score).toFixed(3);
+				const citation = item.citation || metaText || 'unknown source';
 				return `
 					<article class="card">
 						<div class="meta">
 							<span>Rank ${item.rank}</span>
-							<span>${metaText || 'unknown source'}</span>
+							<span class="score">${citation}</span>
 							<span>Distance <strong>${distance}</strong></span>
 							<span>Confidence <strong class="score">${confidence}</strong></span>
 							<span>Complexity <strong>${complexity}</strong> (${item.complexity_label || 'n/a'})</span>
@@ -256,7 +262,7 @@ def home():
 				const data = await response.json();
 				answerEl.textContent = data.answer || 'No answer returned.';
 				linksEl.innerHTML = data.links
-					? data.links.split('\n').map((link) => `<div><a href="${link}" target="_blank" rel="noreferrer">${link}</a></div>`).join('')
+					? data.links.split('\\n').map((link) => `<div><a href="${link}" target="_blank" rel="noreferrer">${link}</a></div>`).join('')
 					: '<span class="muted">No links returned.</span>';
 				renderResults(data.retrieval_results || []);
 				setStatus('Done.');
@@ -313,6 +319,14 @@ def query_rag(req: QueryRequest):
 			context_blocks.append(f"[{repo}/{path}]({url}):\n{doc[:300]}{'...' if len(doc) > 300 else ''}")
 		else:
 			context_blocks.append(doc[:300] + ("..." if len(doc) > 300 else ""))
+		# Build citation/attribution from available metadata
+		item_with_source = {
+			"source": "github",
+			"source_id": f"{repo}/{path}" if repo and path else "",
+			"source_url": url if repo and path else "",
+			"title": path.split("/")[-1] if path else "",
+			"author": None,
+		}
 		retrieval_results.append({
 			"rank": i + 1,
 			"metadata": meta,
@@ -320,6 +334,8 @@ def query_rag(req: QueryRequest):
 			"confidence_score": confidence_score,
 			"complexity_score": complexity_score,
 			"complexity_label": complexity_label,
+			"citation": format_citation(item_with_source),
+			"citation_markdown": format_citation_markdown(item_with_source),
 			"preview": doc[:300] + ("..." if len(doc) > 300 else ""),
 		})
 	context = "\n---\n".join(context_blocks)

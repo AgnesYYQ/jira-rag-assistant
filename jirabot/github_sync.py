@@ -74,13 +74,23 @@ def sync_github_code_to_vector_db(
         # If incremental: skip files not updated since last sync (GitHub API doesn't provide last-modified in tree, so always sync all for now)
         file_id = f"gh_code_{repo}_{path}"
         content = fetch_file_content(repo, entry["sha"])
+        filename = path.split("/")[-1]
+        source_url = f"https://github.com/{repo}/blob/{branch}/{path}"
         kb_by_id[file_id] = {
             "id": file_id,
             "question": f"Code: {path}",
             "answer": content,
             "path": path,
             "repo": repo,
-            "type": "github_code"
+            "type": "github_code",
+            # --- Citation ---
+            "source": "github",
+            "source_id": f"{repo}:{path}",
+            "source_url": source_url,
+            "title": filename,
+            # --- Attribution ---
+            "author": None,
+            "updated": None,
         }
         count += 1
     # Save
