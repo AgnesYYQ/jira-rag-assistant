@@ -216,6 +216,41 @@ Jira will now send a POST request to your webhook server every time a new ticket
   - This manual mode uses the same agent logic as automation and does not interfere with the webhook server or automated flow.
 - Customize prompts, retrieval, and posting logic as needed.
 
+  ## Local Demo
+
+  Run this short demo to verify the local GitHub-to-Chroma query flow end to end:
+
+  1. Activate the project virtual environment:
+    ```bash
+    source .venv/bin/activate
+    ```
+  2. Start Ollama and load the model used by the API layer:
+    ```bash
+    ollama run llama3
+    ```
+  3. Run a local semantic query against the Chroma collection:
+    ```bash
+    python scripts/chroma_query.py "rag agent"
+    ```
+
+  If you want a readable browser demo, start the server and open `http://localhost:8001/`:
+
+  ```bash
+  uvicorn scripts.rag_server:app --host 0.0.0.0 --port 8001 --reload
+  ```
+
+  Then use the page to run queries and read the answer, links, and retrieval scores as cards.
+
+  If you want the raw API response instead, call `/query`:
+
+  ```bash
+  curl -X POST http://localhost:8001/query \
+    -H "Content-Type: application/json" \
+    -d '{"question":"rag agent"}'
+  ```
+
+  The query output includes retrieval metadata such as distance, a normalized confidence score, and a lightweight complexity estimate.
+
 ## Folder Structure
 - `jiraComment.py` — Main script (to be modularized)
 - `kb.yaml` — Bedrock KB and data source config
@@ -239,9 +274,17 @@ Update your usage accordingly, e.g.:
 
     python scripts/chroma_query.py "your query"
 
+To resync GitHub changes into the local Chroma collection, rerun:
+
+  python scripts/local_chromadb_ingest.py
+
+The script now compares GitHub blob SHAs against stored Chroma metadata, so unchanged files are skipped and deleted files are removed from the collection.
+
+Query responses also include retrieval metadata such as distance, a normalized confidence score, and a lightweight complexity estimate.
+
 or
 
-    uvicorn scripts.rag_server:app --reload
+  uvicorn scripts.rag_server:app --host 0.0.0.0 --port 8001 --reload
 
 ---
 

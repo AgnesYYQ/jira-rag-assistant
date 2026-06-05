@@ -1,3 +1,9 @@
+# 0. Vector DB Collection (OpenSearch Serverless)
+resource "aws_opensearchserverless_collection" "vector_db" {
+  name = "company-kb-vector-db"
+  type = "VECTORSEARCH"
+}
+
 # 1. The Unified Knowledge Base (The "Brain")
 resource "aws_bedrockagent_knowledge_base" "company_kb" {
   name     = "unified-company-knowledge"

@@ -6,6 +6,7 @@ from sentence_transformers import SentenceTransformer
 import numpy as np
 import json
 import os
+from jirabot.query_scoring import confidence_from_distance, complexity_from_text
 
 class VectorDB:
     def __init__(self, kb_path, model_name='all-MiniLM-L6-v2'):
@@ -61,7 +62,17 @@ class VectorDB:
         query_vec = self.model.encode([text], convert_to_numpy=True)
         D, I = self.index.search(query_vec, top_k)
         results = []
-        for idx in I[0]:
+        for position, idx in enumerate(I[0]):
             if idx < len(self.data):
-                results.append(self.data[idx])
+                item = dict(self.data[idx])
+                distance = float(D[0][position]) if position < len(D[0]) else None
+                confidence_score = confidence_from_distance(distance)
+                complexity_score, complexity_label = complexity_from_text(
+                    f"{item.get('question', '')}\n{item.get('answer', '')}"
+                )
+                item["distance"] = distance
+                item["confidence_score"] = confidence_score
+                item["complexity_score"] = complexity_score
+                item["complexity_label"] = complexity_label
+                results.append(item)
         return results
