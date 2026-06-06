@@ -55,8 +55,8 @@ The project includes a unified sync pipeline to ensure the vector DB always refl
   - **GitHub:** Files deleted from the repo are removed from the vector DB.
 
 ### Automated & Manual Sync
-- **Automated Nightly Sync:** A central script (`nightly_sync.py`) runs all sync pipelines (Wiki, Jira, GitHub) on a schedule using GitHub Actions (GHA) or any scheduler. This keeps the KB up-to-date with all sources.
-- **Manual/Selective Sync:** The same script and GHA workflow can be manually triggered to sync only selected sources (Wiki, Jira, GitHub) as needed.
+- **Automated Sync:** A central script (`sync_data_to_kb.py`) runs all sync pipelines (GitHub, optionally Wiki & Jira) via GitHub Actions or any scheduler. Keeps the KB up-to-date.
+- **Manual/Selective Sync:** The same script and GHA workflow can be manually triggered to sync only selected sources as needed.
 
 ### Individual Sync Scripts
 - `jirabot/wiki_sync.py` — Syncs Confluence Wiki pages to the KB (run with: `python jirabot/wiki_sync.py <SPACEKEY>`)
@@ -66,13 +66,13 @@ The project includes a unified sync pipeline to ensure the vector DB always refl
 All scripts require appropriate API credentials and KB path via environment variables.
 
 ### GitHub Actions Workflow
-- The workflow `.github/workflows/nightly-sync.yml` runs nightly by default, syncing all three sources.
-- You can also manually trigger the workflow and select which sources to sync (Wiki, Jira, GitHub) via the GHA UI.
+- The workflow `.github/workflows/sync-kb-data.yml` syncs data on demand (or on a schedule if configured).
+- You can manually trigger the workflow and select which sources to sync (GitHub, Wiki, Jira) via the GHA UI.
 
 ### Example: Manual Sync
 To sync only Jira and GitHub (not Wiki) via CLI:
 ```bash
-python nightly_sync.py --jira --github
+python sync_data_to_kb.py --github
 ```
 
 To sync only Wiki via GHA, use the workflow dispatch UI and uncheck Jira and GitHub.
@@ -265,7 +265,7 @@ All Python scripts previously in the root directory are now in the scripts/ fold
 - chroma_query.py
 - chroma_remove_duplicates.py
 - local_chromadb_ingest.py
-- nightly_sync.py
+- sync_data_to_kb.py
 - rag_server.py
 - run_webhook_server.py
 - webhook_server.py

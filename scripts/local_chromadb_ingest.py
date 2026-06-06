@@ -17,6 +17,26 @@ INCLUDE_EXTS = (
 )
 EMBED_MODEL = "all-MiniLM-L6-v2"
 
+# GitHub auth headers (optional — used to raise the rate limit from 60 to 5000 req/hr)
+GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
+_GH_HEADERS = {"Authorization": f"token {GITHUB_TOKEN}"} if GITHUB_TOKEN else {}
+
+
+def fetch_last_commit_author(org: str, repo: str, file_path: str) -> str | None:
+    """Return the author name of the most recent commit touching *file_path*."""
+    url = f"https://api.github.com/repos/{org}/{repo}/commits"
+    params = {"path": file_path, "per_page": 1}
+    try:
+        resp = requests.get(url, params=params, headers=_GH_HEADERS, timeout=10)
+        resp.raise_for_status()
+        commits = resp.json()
+        if commits and isinstance(commits, list):
+            author_info = commits[0].get("commit", {}).get("author", {})
+            return author_info.get("name") or commits[0].get("author", {}).get("login")
+    except Exception as exc:
+        print(f"[WARN] Could not fetch author for {org}/{repo}/{file_path}: {exc}")
+    return None
+
 # --- 1. List all public repos in the org ---
 def list_repos(org):
     url = f"https://api.github.com/users/{org}/repos"
@@ -55,7 +75,8 @@ def fetch_code_files(org, repo, include_exts=INCLUDE_EXTS):
             code_files.append({
                 "repo": repo,
                 "path": f["path"],
-                "content": code.text
+                "sha": f["sha"],
+                "content": code.text,
             })
         if (i+1) % 10 == 0 or i == len(files)-1:
             print(f"[INFO]     Downloaded {i+1}/{len(files)} files...")
@@ -90,6 +111,9 @@ def sync_repo_to_chroma(org, repo, collection, embedder, include_exts=INCLUDE_EX
             skipped += 1
             continue
 
+        # Fetch the last commit author for attribution
+        author = fetch_last_commit_author(org, repo, file_path)
+
         doc_id = f"{repo}:{file_path}"
         doc = f"Repo: {repo}\nPath: {file_path}\n\n{file['content']}"
         emb = embedder.encode([doc])[0]
@@ -97,6 +121,7 @@ def sync_repo_to_chroma(org, repo, collection, embedder, include_exts=INCLUDE_EX
             "repo": repo,
             "path": file_path,
             "sha": file["sha"],
+            "author": author,
         }
 
         if hasattr(collection, "upsert"):

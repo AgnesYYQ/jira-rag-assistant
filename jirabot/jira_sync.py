@@ -8,13 +8,13 @@ Jira Sync Pipeline for VectorDB KB
 import os
 import requests
 import json
-SYNC_META_PATH = os.path.join(os.path.dirname(KB_PATH), "sync_meta.json")
 from datetime import datetime
 
 JIRA_API_URL = os.environ.get("JIRA_API_URL")
 JIRA_USER = os.environ.get("JIRA_USER")
 JIRA_TOKEN = os.environ.get("JIRA_TOKEN")
 KB_PATH = os.environ.get("VECTOR_KB_PATH", "./kb_data/sample_kb.json")
+SYNC_META_PATH = os.path.join(os.path.dirname(KB_PATH), "sync_meta.json")
 
 
 def fetch_jira_issues(project_key, max_results=100):

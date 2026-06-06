@@ -7,18 +7,14 @@ GitHub Code Sync Pipeline for VectorDB KB
 - Requires GitHub token and KB path via environment variables.
 """
 import os
-def fetch_github_issues(repo, state="all", per_page=100):
-def fetch_github_prs(repo, state="all", per_page=100):
-def sync_github_to_vector_db(repo):
-
 import requests
 import json
 from datetime import datetime
-SYNC_META_PATH = os.path.join(os.path.dirname(KB_PATH), "sync_meta.json")
 
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
 KB_PATH = os.environ.get("VECTOR_KB_PATH", "./kb_data/sample_kb.json")
 HEADERS = {"Authorization": f"token {GITHUB_TOKEN}"} if GITHUB_TOKEN else {}
+SYNC_META_PATH = os.path.join(os.path.dirname(KB_PATH), "sync_meta.json")
 
 def get_default_branch(repo):
     url = f"https://api.github.com/repos/{repo}"
@@ -42,6 +38,22 @@ def fetch_file_content(repo, file_sha):
     if encoding == "base64":
         return base64.b64decode(content).decode("utf-8", errors="ignore")
     return content
+
+def fetch_last_commit_author(repo: str, file_path: str) -> str | None:
+    """Return the author name of the most recent commit touching *file_path*."""
+    url = f"https://api.github.com/repos/{repo}/commits"
+    params = {"path": file_path, "per_page": 1}
+    try:
+        resp = requests.get(url, params=params, headers=HEADERS, timeout=10)
+        resp.raise_for_status()
+        commits = resp.json()
+        if commits and isinstance(commits, list):
+            author_info = commits[0].get("commit", {}).get("author", {})
+            return author_info.get("name") or commits[0].get("author", {}).get("login")
+    except Exception as exc:
+        print(f"[WARN] Could not fetch author for {repo}/{file_path}: {exc}")
+    return None
+
 
 def sync_github_code_to_vector_db(
     repo,
@@ -76,6 +88,8 @@ def sync_github_code_to_vector_db(
         content = fetch_file_content(repo, entry["sha"])
         filename = path.split("/")[-1]
         source_url = f"https://github.com/{repo}/blob/{branch}/{path}"
+        # Fetch author from last commit
+        author = fetch_last_commit_author(repo, path)
         kb_by_id[file_id] = {
             "id": file_id,
             "question": f"Code: {path}",
@@ -89,7 +103,7 @@ def sync_github_code_to_vector_db(
             "source_url": source_url,
             "title": filename,
             # --- Attribution ---
-            "author": None,
+            "author": author,
             "updated": None,
         }
         count += 1

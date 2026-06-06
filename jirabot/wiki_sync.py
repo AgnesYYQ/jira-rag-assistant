@@ -14,14 +14,15 @@ Usage:
 import requests
 import os
 import json
-SYNC_META_PATH = os.path.join(os.path.dirname(KB_PATH), "sync_meta.json")
-from jirabot.vector_db import VectorDB
 from datetime import datetime
+
+from jirabot.vector_db import VectorDB
 
 CONFLUENCE_API_URL = os.environ.get("CONFLUENCE_API_URL")
 CONFLUENCE_USER = os.environ.get("CONFLUENCE_USER")
 CONFLUENCE_TOKEN = os.environ.get("CONFLUENCE_TOKEN")
 KB_PATH = os.environ.get("VECTOR_KB_PATH", "./kb_data/sample_kb.json")
+SYNC_META_PATH = os.path.join(os.path.dirname(KB_PATH), "sync_meta.json")
 
 # --- 1. Fetch all pages (with update timestamps) ---
 def fetch_confluence_pages(space_key, limit=100):

@@ -166,6 +166,8 @@ def home():
 		}
 		.links a { color: var(--accent-2); text-decoration: none; }
 		.links a:hover { text-decoration: underline; }
+		.citation-link { color: var(--accent-2); text-decoration: none; }
+		.citation-link:hover { text-decoration: underline; }
 	</style>
 </head>
 <body>
@@ -229,11 +231,15 @@ def home():
 				const confidence = item.confidence_score == null ? 'n/a' : Number(item.confidence_score).toFixed(3);
 				const complexity = item.complexity_score == null ? 'n/a' : Number(item.complexity_score).toFixed(3);
 				const citation = item.citation || metaText || 'unknown source';
+				const sourceUrl = item.source_url || '';
+				const citationHtml = sourceUrl
+					? `<a href="${sourceUrl}" target="_blank" rel="noreferrer" class="citation-link">${citation}</a>`
+					: citation;
 				return `
 					<article class="card">
 						<div class="meta">
 							<span>Rank ${item.rank}</span>
-							<span class="score">${citation}</span>
+							<span class="score">${citationHtml}</span>
 							<span>Distance <strong>${distance}</strong></span>
 							<span>Confidence <strong class="score">${confidence}</strong></span>
 							<span>Complexity <strong>${complexity}</strong> (${item.complexity_label || 'n/a'})</span>
@@ -320,12 +326,13 @@ def query_rag(req: QueryRequest):
 		else:
 			context_blocks.append(doc[:300] + ("..." if len(doc) > 300 else ""))
 		# Build citation/attribution from available metadata
+		author = meta.get("author")
 		item_with_source = {
 			"source": "github",
 			"source_id": f"{repo}/{path}" if repo and path else "",
 			"source_url": url if repo and path else "",
 			"title": path.split("/")[-1] if path else "",
-			"author": None,
+			"author": author,
 		}
 		retrieval_results.append({
 			"rank": i + 1,
@@ -336,6 +343,7 @@ def query_rag(req: QueryRequest):
 			"complexity_label": complexity_label,
 			"citation": format_citation(item_with_source),
 			"citation_markdown": format_citation_markdown(item_with_source),
+			"source_url": url if repo and path else "",
 			"preview": doc[:300] + ("..." if len(doc) > 300 else ""),
 		})
 	context = "\n---\n".join(context_blocks)
