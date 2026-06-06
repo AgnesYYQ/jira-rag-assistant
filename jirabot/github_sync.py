@@ -12,6 +12,7 @@ import json
 from datetime import datetime
 
 GITHUB_TOKEN = os.environ.get("GITHUB_TOKEN")
+GITHUB_OWNER = os.environ.get("GITHUB_OWNER", "AgnesYYQ")
 KB_PATH = os.environ.get("VECTOR_KB_PATH", "./kb_data/sample_kb.json")
 HEADERS = {"Authorization": f"token {GITHUB_TOKEN}"} if GITHUB_TOKEN else {}
 SYNC_META_PATH = os.path.join(os.path.dirname(KB_PATH), "sync_meta.json")
@@ -38,6 +39,15 @@ def fetch_file_content(repo, file_sha):
     if encoding == "base64":
         return base64.b64decode(content).decode("utf-8", errors="ignore")
     return content
+
+def _full_repo(repo: str) -> str:
+    """Return the full ``owner/repo`` string.
+
+    If *repo* already contains a ``/`` it is returned as-is; otherwise
+    ``GITHUB_OWNER`` is prepended.
+    """
+    return repo if "/" in repo else f"{GITHUB_OWNER}/{repo}"
+
 
 def fetch_last_commit_author(repo: str, file_path: str) -> str | None:
     """Return the author name of the most recent commit touching *file_path*."""
@@ -84,10 +94,11 @@ def sync_github_code_to_vector_db(
         if not any(path.endswith(ext) for ext in include_exts):
             continue
         # If incremental: skip files not updated since last sync (GitHub API doesn't provide last-modified in tree, so always sync all for now)
-        file_id = f"gh_code_{repo}_{path}"
+        full_repo_name = _full_repo(repo)
+        file_id = f"gh_code_{full_repo_name}_{path}"
         content = fetch_file_content(repo, entry["sha"])
         filename = path.split("/")[-1]
-        source_url = f"https://github.com/{repo}/blob/{branch}/{path}"
+        source_url = f"https://github.com/{full_repo_name}/blob/{branch}/{path}"
         # Fetch author from last commit
         author = fetch_last_commit_author(repo, path)
         kb_by_id[file_id] = {
@@ -95,7 +106,7 @@ def sync_github_code_to_vector_db(
             "question": f"Code: {path}",
             "answer": content,
             "path": path,
-            "repo": repo,
+            "repo": full_repo_name,
             "type": "github_code",
             # --- Citation ---
             "source": "github",

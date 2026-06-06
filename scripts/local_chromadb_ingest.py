@@ -98,9 +98,10 @@ def sync_repo_to_chroma(org, repo, collection, embedder, include_exts=INCLUDE_EX
 
     Returns a dict with counts for updated, skipped, and deleted files.
     """
+    full_repo_name = f"{org}/{repo}"
     code_files = fetch_code_files(org, repo, include_exts=include_exts)
     current_by_path = {file["path"]: file for file in code_files}
-    existing_by_path = _collection_items_by_repo(collection, repo)
+    existing_by_path = _collection_items_by_repo(collection, full_repo_name)
 
     updated = 0
     skipped = 0
@@ -114,11 +115,11 @@ def sync_repo_to_chroma(org, repo, collection, embedder, include_exts=INCLUDE_EX
         # Fetch the last commit author for attribution
         author = fetch_last_commit_author(org, repo, file_path)
 
-        doc_id = f"{repo}:{file_path}"
-        doc = f"Repo: {repo}\nPath: {file_path}\n\n{file['content']}"
+        doc_id = f"{full_repo_name}:{file_path}"
+        doc = f"Repo: {full_repo_name}\nPath: {file_path}\n\n{file['content']}"
         emb = embedder.encode([doc])[0]
         metadata = {
-            "repo": repo,
+            "repo": full_repo_name,
             "path": file_path,
             "sha": file["sha"],
             "author": author,

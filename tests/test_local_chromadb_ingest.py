@@ -37,15 +37,15 @@ class FakeCollection:
 def test_sync_repo_to_chroma_updates_changed_and_removes_deleted(monkeypatch):
     collection = FakeCollection(
         {
-            "repo:keep.py": {
+            "org/repo:keep.py": {
                 "document": "old keep",
                 "embedding": [1.0],
-                "metadata": {"repo": "repo", "path": "keep.py", "sha": "old-sha"},
+                "metadata": {"repo": "org/repo", "path": "keep.py", "sha": "old-sha"},
             },
-            "repo:remove.py": {
+            "org/repo:remove.py": {
                 "document": "old remove",
                 "embedding": [1.0],
-                "metadata": {"repo": "repo", "path": "remove.py", "sha": "remove-sha"},
+                "metadata": {"repo": "org/repo", "path": "remove.py", "sha": "remove-sha"},
             },
         }
     )
@@ -61,8 +61,11 @@ def test_sync_repo_to_chroma_updates_changed_and_removes_deleted(monkeypatch):
     stats = sync_repo_to_chroma("org", "repo", collection, FakeEmbedder())
 
     assert stats == {"updated": 1, "skipped": 1, "deleted": 1, "total": 2}
-    assert "repo:remove.py" not in collection.items
-    assert "repo:keep.py" in collection.items
-    assert "repo:new.py" in collection.items
-    assert collection.items["repo:keep.py"]["metadata"]["sha"] == "old-sha"
-    assert collection.items["repo:new.py"]["metadata"]["sha"] == "new-sha"
+    assert "org/repo:remove.py" not in collection.items
+    assert "org/repo:keep.py" in collection.items
+    assert "org/repo:new.py" in collection.items
+    assert collection.items["org/repo:keep.py"]["metadata"]["sha"] == "old-sha"
+    assert collection.items["org/repo:new.py"]["metadata"]["sha"] == "new-sha"
+    # Verify metadata stores the full owner/repo name
+    assert collection.items["org/repo:keep.py"]["metadata"]["repo"] == "org/repo"
+    assert collection.items["org/repo:new.py"]["metadata"]["repo"] == "org/repo"

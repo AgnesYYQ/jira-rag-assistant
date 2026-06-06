@@ -1,3 +1,4 @@
+import os
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
@@ -16,6 +17,23 @@ from jirabot.query_scoring import (
     format_citation,
     format_citation_markdown,
 )
+
+# GitHub owner/org — used to construct proper source URLs when the stored
+# repo metadata does not include the owner prefix (e.g. "jira-rag-assistant"
+# instead of "AgnesYYQ/jira-rag-assistant").
+GITHUB_OWNER = os.environ.get("GITHUB_OWNER", "AgnesYYQ")
+
+
+def _full_repo(repo: str | None) -> str | None:
+    """Return the full ``owner/repo`` string.
+
+    If *repo* already contains a ``/`` it is returned as-is; otherwise
+    ``GITHUB_OWNER`` is prepended.
+    """
+    if not repo:
+        return None
+    return repo if "/" in repo else f"{GITHUB_OWNER}/{repo}"
+
 
 app = FastAPI()
 client = chromadb.PersistentClient(path="chroma_db")
@@ -317,20 +335,21 @@ def query_rag(req: QueryRequest):
 		complexity_score, complexity_label = complexity_from_text(doc)
 		repo = meta.get("repo")
 		path = meta.get("path")
+		full_repo = _full_repo(repo)
 		# Default to 'main' branch; adjust if you want to infer from metadata
 		branch = "main"
-		if repo and path:
-			url = f"https://github.com/{repo}/blob/{branch}/{path}"
+		if full_repo and path:
+			url = f"https://github.com/{full_repo}/blob/{branch}/{path}"
 			links.append(url)
-			context_blocks.append(f"[{repo}/{path}]({url}):\n{doc[:300]}{'...' if len(doc) > 300 else ''}")
+			context_blocks.append(f"[{full_repo}/{path}]({url}):\n{doc[:300]}{'...' if len(doc) > 300 else ''}")
 		else:
 			context_blocks.append(doc[:300] + ("..." if len(doc) > 300 else ""))
 		# Build citation/attribution from available metadata
 		author = meta.get("author")
 		item_with_source = {
 			"source": "github",
-			"source_id": f"{repo}/{path}" if repo and path else "",
-			"source_url": url if repo and path else "",
+			"source_id": f"{full_repo}/{path}" if full_repo and path else "",
+			"source_url": url if full_repo and path else "",
 			"title": path.split("/")[-1] if path else "",
 			"author": author,
 		}
