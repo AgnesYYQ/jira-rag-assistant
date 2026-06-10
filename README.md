@@ -36,6 +36,9 @@ JiraBot leverages AWS Bedrock, a unified knowledge base (RAG), and JIRA APIs to 
 - Retrieval-augmented generation (RAG) using AWS Bedrock
 - Automated JIRA comment drafting and posting
 - Source citation in generated comments
+- **Two-tier CAG caching** (exact-match + semantic) — repeated or paraphrased queries return cached results, reducing latency and API costs
+- **VectorDB query cache** — query results are cached with both exact and semantic (embedding-based) lookup; results include `distance`, `cosine_similarity`, `confidence_score`, and `complexity_score`
+- **Ticket-level response cache** — generated comments are cached by ticket key to avoid redundant Bedrock API calls
 - Modular, extensible Python codebase
 
 ## Keeping the Vector DB Up-to-Date (Syncing Knowledge Sources)
@@ -171,6 +174,7 @@ sequenceDiagram
 ## Architecture
 - **Python**: Orchestrates retrieval, generation, and JIRA API calls
 - **AWS Bedrock**: Embedding, vector search, and LLM inference
+- **CAG (Cache, Augmented Generation)**: Two-tier in-memory cache — exact-match (O(1) dict) + semantic (cosine similarity on sentence-transformer embeddings) — no external middleware required
 - **Terraform**: Infrastructure as code for KB, data sources, IAM
 
 
@@ -213,6 +217,7 @@ Jira will now send a POST request to your webhook server every time a new ticket
   python -m jirabot.main --ticket ABC-123
   ```
   - Use `--dry-run` to print the generated comment without posting to Jira.
+  - Use `--no-cache` to bypass the ticket-level cache and force a fresh Bedrock API call.
   - This manual mode uses the same agent logic as automation and does not interfere with the webhook server or automated flow.
 - Customize prompts, retrieval, and posting logic as needed.
 
@@ -249,10 +254,12 @@ Jira will now send a POST request to your webhook server every time a new ticket
     -d '{"question":"rag agent"}'
   ```
 
-  The query output includes retrieval metadata such as distance, a normalized confidence score, a lightweight complexity estimate, and source citation.
+  The query output includes retrieval metadata such as distance, cosine similarity, a normalized confidence score, a lightweight complexity estimate, and source citation.
 
 ## Folder Structure
-- `jiraComment.py` — Main script (to be modularized)
+- `jirabot/cag.py` — Two-tier CAG cache (exact-match + semantic via sentence-transformers)
+- `jirabot/vector_db.py` — FAISS vector DB with integrated CAG caching
+- `jirabot/main.py` — Agent entry point with ticket-level response cache
 - `kb.yaml` — Bedrock KB and data source config
 - `iam.yaml` — IAM policy for Bedrock, S3, OpenSearch, Secrets
 - `requirements.txt` — Python dependencies
@@ -280,7 +287,7 @@ To resync GitHub changes into the local Chroma collection, rerun:
 
 The script now compares GitHub blob SHAs against stored Chroma metadata, so unchanged files are skipped and deleted files are removed from the collection.
 
-Query responses also include retrieval metadata such as distance, a normalized confidence score, and a lightweight complexity estimate.
+Query responses also include retrieval metadata such as distance, cosine similarity, a normalized confidence score, and a lightweight complexity estimate.
 
 or
 

@@ -1,11 +1,13 @@
 """
-VectorDB: Simple vector database using FAISS and sentence-transformers.
+VectorDB: Simple vector database using FAISS and sentence-transformers,
+with two-tier CAG caching (exact + semantic).
 """
 import faiss
 from sentence_transformers import SentenceTransformer
 import numpy as np
 import json
 import os
+from jirabot.cag import CAG
 from jirabot.query_scoring import (
     confidence_from_distance,
     complexity_from_text,
@@ -14,12 +16,14 @@ from jirabot.query_scoring import (
 )
 
 class VectorDB:
-    def __init__(self, kb_path, model_name='all-MiniLM-L6-v2'):
+    def __init__(self, kb_path, model_name='all-MiniLM-L6-v2', cache_threshold=0.85):
         self.kb_path = kb_path
         self.model = SentenceTransformer(model_name)
         self.index = None
         self.data = []
         self.embeddings = None
+        # Two-tier cache: exact-match + semantic (embedding-based)
+        self._cache = CAG(model_name=model_name, similarity_threshold=cache_threshold)
         self._load_kb()
 
     def _load_kb(self):
@@ -63,9 +67,34 @@ class VectorDB:
             self.embeddings = None
             self.index = None
 
-    def query(self, text, top_k=3):
+    # Maximum number of results to cache per query.  When a query with a
+    # smaller *top_k* hits a semantically-cached entry that stored *max_k*
+    # results, the extra ones are simply sliced off.
+    _CACHE_MAX_K = 20
+
+    def query(self, text, top_k=3, use_cache=True):
+        """Search the vector DB, with optional two-tier caching.
+
+        When *use_cache* is ``True`` (default), the query first checks a
+        two-tier cache:
+          - **exact match** — fast dict lookup for repeated identical queries.
+          - **semantic match** — embedding similarity for paraphrased queries.
+
+        On a cache miss the normal FAISS search runs and the result is
+        automatically stored for future lookups under a generous ``top_k``
+        so that subsequent calls with smaller (or equal) ``top_k`` values
+        can reuse the cached data.
+        """
+        # ---- Cache check (exact → semantic) ----
+        if use_cache:
+            cached = self._cache.get(text, semantic_key=text)
+            if cached is not None:
+                return cached[:top_k]  # slice to desired count
+
+        # ---- Normal FAISS search (at max_k to maximise cache reuse) ----
+        max_k = max(top_k, self._CACHE_MAX_K)
         query_vec = self.model.encode([text], convert_to_numpy=True)
-        D, I = self.index.search(query_vec, top_k)
+        D, I = self.index.search(query_vec, max_k)
         results = []
         for position, idx in enumerate(I[0]):
             if idx < len(self.data):
@@ -76,6 +105,15 @@ class VectorDB:
                     f"{item.get('question', '')}\n{item.get('answer', '')}"
                 )
                 item["distance"] = distance
+                # Cosine similarity between the query and this result's embedding
+                if self.embeddings is not None and idx < len(self.embeddings):
+                    a = query_vec[0]
+                    b = self.embeddings[idx]
+                    dot = float(np.dot(a, b))
+                    norm = float(np.linalg.norm(a)) * float(np.linalg.norm(b))
+                    item["cosine_similarity"] = round(dot / norm, 4) if norm > 0 else 0.0
+                else:
+                    item["cosine_similarity"] = None
                 item["confidence_score"] = confidence_score
                 item["complexity_score"] = complexity_score
                 item["complexity_label"] = complexity_label
@@ -83,4 +121,18 @@ class VectorDB:
                 item["citation"] = format_citation(item)
                 item["citation_markdown"] = format_citation_markdown(item)
                 results.append(item)
-        return results
+
+        # ---- Store in cache (the full result set) ----
+        if use_cache:
+            self._cache.set(text, results, semantic_key=text)
+
+        return results[:top_k]
+
+    def clear_cache(self):
+        """Drop all cached query results."""
+        self._cache.clear()
+
+    @property
+    def cache_stats(self) -> dict:
+        """Cache performance counters (exact hits, semantic hits, misses …)."""
+        return self._cache.stats

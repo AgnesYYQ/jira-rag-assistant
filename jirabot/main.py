@@ -1,13 +1,3 @@
-def main():
-    """
-    Manual CLI entry point for JiraBot: generates and posts a comment to a JIRA ticket.
-
-    Note: In production, the agent is triggered automatically by Jira webhooks via the webhook server.
-    This script is for manual/testing use only and does not interfere with the webhook flow.
-    """
-import argparse
-from .agent import get_bedrock_client, get_retriever, get_jira_toolkit, get_system_prompt
-
 """
 JiraBot main entry point: generates and posts a comment to a JIRA ticket.
 
@@ -19,12 +9,29 @@ In production, the webhook server triggers this logic for new tickets. Manual CL
 """
 import argparse
 from .agent import get_bedrock_client, get_retriever, get_jira_toolkit, get_system_prompt
+from .cag import CAG
+
+# Module-level cache so repeated runs for the same ticket skip the API call.
+_cache = CAG()
+
 
 def main():
     parser = argparse.ArgumentParser(description="JiraBot (manual): Generate and post JIRA comments using Bedrock RAG.")
     parser.add_argument('--ticket', required=True, help='JIRA ticket key (e.g., ABC-123)')
     parser.add_argument('--dry-run', action='store_true', help='Only print the comment, do not post')
+    parser.add_argument('--no-cache', action='store_true', help='Skip cache and force fresh generation')
     args = parser.parse_args()
+
+    # ---- Cache check (exact-match by ticket key) ----
+    if not args.no_cache:
+        cached_comment = _cache.get(args.ticket)
+        if cached_comment is not None:
+            print(f"[CAG cache hit] Using cached comment for {args.ticket}")
+            comment = cached_comment
+            # Still print and optionally post
+            print(f"Generated comment:\n{comment}\n")
+            _post_or_dry_run(args, comment)
+            return
 
     bedrock_client = get_bedrock_client()
     retriever = get_retriever()
@@ -47,11 +54,21 @@ def main():
     comment = response['output']['text']
     print(f"Generated comment:\n{comment}\n")
 
+    # Store in cache for future runs
+    _cache.set(args.ticket, comment)
+
+    _post_or_dry_run(args, comment)
+
+
+def _post_or_dry_run(args, comment: str):
+    """Post the comment to Jira unless ``--dry-run`` is set."""
     if not args.dry_run:
+        jira_toolkit = get_jira_toolkit()
         jira_toolkit.get_tools()[0].add_comment(args.ticket, comment)
         print(f"Comment posted to {args.ticket}")
     else:
         print("Dry run: comment not posted.")
+
 
 if __name__ == "__main__":
     main()

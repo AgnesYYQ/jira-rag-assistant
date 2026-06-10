@@ -1,4 +1,5 @@
 import os
+import numpy as np
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
@@ -6,6 +7,7 @@ import chromadb
 import requests
 import sys
 from pathlib import Path
+from sentence_transformers import SentenceTransformer
 
 ROOT_DIR = Path(__file__).resolve().parents[1]
 if str(ROOT_DIR) not in sys.path:
@@ -38,6 +40,9 @@ def _full_repo(repo: str | None) -> str | None:
 app = FastAPI()
 client = chromadb.PersistentClient(path="chroma_db")
 collection = client.get_or_create_collection("github_code")
+
+# Same embedding model used during ingestion
+_embed_model = SentenceTransformer("all-MiniLM-L6-v2")
 
 
 @app.get("/", response_class=HTMLResponse)
@@ -245,8 +250,7 @@ def home():
 			resultsEl.innerHTML = items.map((item) => {
 				const meta = item.metadata || {};
 				const metaText = [meta.repo, meta.path].filter(Boolean).join(' / ');
-				const distance = item.distance == null ? 'n/a' : Number(item.distance).toFixed(4);
-				const confidence = item.confidence_score == null ? 'n/a' : Number(item.confidence_score).toFixed(3);
+				const distance = item.distance == null ? 'n/a' : Number(item.distance).toFixed(4);			const cosineSim = item.cosine_similarity == null ? 'n/a' : Number(item.cosine_similarity).toFixed(4);				const confidence = item.confidence_score == null ? 'n/a' : Number(item.confidence_score).toFixed(3);
 				const complexity = item.complexity_score == null ? 'n/a' : Number(item.complexity_score).toFixed(3);
 				const citation = item.citation || metaText || 'unknown source';
 				const sourceUrl = item.source_url || '';
@@ -259,6 +263,7 @@ def home():
 							<span>Rank ${item.rank}</span>
 							<span class="score">${citationHtml}</span>
 							<span>Distance <strong>${distance}</strong></span>
+							<span>CosSim <strong>${cosineSim}</strong></span>
 							<span>Confidence <strong class="score">${confidence}</strong></span>
 							<span>Complexity <strong>${complexity}</strong> (${item.complexity_label || 'n/a'})</span>
 						</div>
@@ -315,11 +320,13 @@ class QueryRequest(BaseModel):
 
 @app.post("/query")
 def query_rag(req: QueryRequest):
-	# Retrieve top 5 relevant docs from Chroma
+	# Compute query embedding for cosine similarity
+	query_emb = _embed_model.encode([req.question], convert_to_numpy=True)[0]
+	# Retrieve top 5 relevant docs from Chroma (include embeddings for similarity)
 	results = collection.query(
 		query_texts=[req.question],
 		n_results=5,
-		include=["documents", "metadatas", "distances"]
+		include=["documents", "metadatas", "distances", "embeddings"]
 	)
 	docs = results["documents"][0] if results["documents"] and results["documents"][0] else []
 	metas = results["metadatas"][0] if results.get("metadatas") and results["metadatas"][0] else []
@@ -353,10 +360,21 @@ def query_rag(req: QueryRequest):
 			"title": path.split("/")[-1] if path else "",
 			"author": author,
 		}
+		# Cosine similarity between query and this result's stored embedding
+		embeddings = results.get("embeddings", [[]])[0] if results.get("embeddings") else []
+		stored_emb = embeddings[i] if i < len(embeddings) else None
+		if stored_emb is not None:
+			dot = float(np.dot(query_emb, stored_emb))
+			norm = float(np.linalg.norm(query_emb)) * float(np.linalg.norm(stored_emb))
+			cosine_sim = round(dot / norm, 4) if norm > 0 else 0.0
+		else:
+			cosine_sim = None
+
 		retrieval_results.append({
 			"rank": i + 1,
 			"metadata": meta,
 			"distance": distance,
+			"cosine_similarity": cosine_sim,
 			"confidence_score": confidence_score,
 			"complexity_score": complexity_score,
 			"complexity_label": complexity_label,

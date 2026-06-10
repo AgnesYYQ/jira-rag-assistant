@@ -4,3 +4,6 @@ langchain-community
 pytest
 python-dotenv
 requests
+sentence-transformers
+faiss-cpu
+numpy
