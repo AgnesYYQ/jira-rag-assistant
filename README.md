@@ -23,7 +23,7 @@ You should receive a JSON response indicating the request was accepted.
 
 
 ## Overview
-JiraBot is automatically triggered by Jira webhooks when a new ticket is created. The webhook server receives the event, runs the agent logic (main.py), and posts a generated comment to the ticket.
+JiraBot is automatically triggered by Jira webhooks when a new ticket is created. The webhook server receives the event, runs the agent logic (`agent.py` via `main.py`), and posts a generated comment to the ticket.
 
 **Agent Logic (main.py) is used in two ways:**
 - **Automation:** Invoked by the webhook server for production ticket processing.
@@ -31,9 +31,19 @@ JiraBot is automatically triggered by Jira webhooks when a new ticket is created
 
 JiraBot leverages AWS Bedrock, a unified knowledge base (RAG), and JIRA APIs to generate high-quality, context-aware comments for JIRA tickets. It integrates data from Confluence, JIRA, GitHub, and S3, using vector search and LLMs for retrieval-augmented generation.
 
+### Agent
+The agent in `jirabot/agent.py` uses **LangChain** (`JiraToolkit` + `AmazonKnowledgeBasesRetriever`) to orchestrate retrieval from the Bedrock Knowledge Base and JIRA interactions. It follows a retrieve → generate → post workflow.
+
+### Models
+| Component | Model |
+|---|---|
+| **LLM (Generation)** | Claude 3 Sonnet (`anthropic.claude-3-sonnet-20240229-v1:0`) via AWS Bedrock |
+| **Embeddings** | `all-MiniLM-L6-v2` (sentence-transformers) for FAISS vector search and semantic caching |
+| **Vector Search** | FAISS `IndexFlatL2` with cosine similarity scoring |
+
 ## Features
 - Unified knowledge base (vector DB) with Wiki, JIRA, GitHub, and S3 sources
-- Retrieval-augmented generation (RAG) using AWS Bedrock
+- Retrieval-augmented generation (RAG) using AWS Bedrock (Claude 3 Sonnet)
 - Automated JIRA comment drafting and posting
 - Source citation in generated comments
 - **Two-tier CAG caching** (exact-match + semantic) — repeated or paraphrased queries return cached results, reducing latency and API costs
